@@ -319,7 +319,7 @@ def primal_dual_single_session(graph, eps):
         j += 1
         if j % 1000 == 0:
             toc = time.time()
-            print('Loop: {0}, Time: {1:.3f}, Price: {2:.3f}'.format(j, toc - tic, D))
+            print('Loop: {0}, Time: {1:.3f}, Price: {2:.6f}'.format(j, toc - tic, D))
     alpha = max_flow(graph.all_nodes())
     output_capacity = Y / alpha
     print('Number of loop: {0}, Total time: {1:.3f}\n'.format(j, time.time() - tic))

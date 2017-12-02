@@ -4,7 +4,7 @@ import numpy as np
 from source import *
 
 # Set Parameters
-N = 10  # number of receivers
+N = 100  # number of receivers
 H = 5  # number of helpers
 M = 2  # Degree bound
 # M = N + 1  # NO Degree bound here
