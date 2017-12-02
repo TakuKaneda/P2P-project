@@ -286,6 +286,101 @@ def max_flow(nodes):
             a = node.flow / node.capacity
     return a
 
+def smallest_price_tree4(graph):
+    """Compute the smallest price tree st:
+    -Full Mesh Graph
+    -With Helper
+    -With Degree Bound"""
+# initialize the degree and child of the tree
+    graph.ini_degree()
+    graph.ini_child()
+    graph.set_degree_bound()
+
+    server = graph.server
+    receivers = graph.receivers
+    helpers = graph.helpers
+
+    R = len(receivers)  # number of receivers
+    H = len(helpers)    # number of helpers
+
+    sorted_receivers = sorted(receivers)  # sort in price
+    sorted_helpers = sorted(helpers)      # sort in price
+
+    min_receiver = sorted_receivers[0]  # the min price receiver
+    min_helper = sorted_helpers[0]      # the min price helper
+
+    A = [server, min_receiver]  # server + min price receiver
+    B = receivers + helpers - min_receiver    # the rest of receivers and helpers
+
+    server.child.append(min_receiver)  # server -> min price receiver
+    server.degree = 1  # degree of server is 1
+
+    mp = 0
+    m = min(mp, R)  # !!!! Not sure of what Mp means... !!!
+
+    helpers.price = helpers.price * (1 / (m - 1))  # Effective price for the helpers
+    # The effective price of the receiver is equal to the real price --> nothing changes
+
+    while intersect(B, R) != 0:
+        for v in A:
+            diff = v.degree_bound - v.degree
+            n = n + diff
+            if n >= len(intersect(B, R)):
+                break
+            m = min(mp, len(intersect(B, R)) - n)
+            helpers.price = helpers.price * (1 / (m - 1))  # Update of the effective price for the helpers
+            min_receiver = sorted_receivers[0]             # Update of the min price receiver
+            if min_receiver <= min_helper:
+                u = [receivers, min_receiver]
+            if min_receiver > min_helper:
+                u = [helpers, min_helper]
+
+            if u.price >= server.price:
+                break
+
+        A_tilde = []
+        for v in A:
+            if v.degree < v.degree_bound:  # m(v) < M(V)
+                A_tilde.append(v)
+        min_node = min(A_tilde)
+        min_node.price = min_node.price + 1
+        A = A + u
+        B = B - u
+
+    tree_price = server.price  # total price of the tree
+    internal = [server]  # set of internal nodes
+    B = intersect(B, R)
+    while B != 0:
+        A_tilde = []
+        for v in A:
+            if v.degree < v.degree_bound:  # m(v) < M(V)
+                A_tilde.append(v)
+        min_node = min(A_tilde)
+        mprime = min(len(B), int(min_node.degree_bound - min_node.degree))
+        D = B[:mprime]  # take m_temp smallest price nodes form B
+        A = A + D  # add D to set A
+        del B[:mprime]  # remove the nodes from B
+
+        min_node.degree = min_node.degree + mprime  # update the degree of the min price node
+        min_node.child = min_node.child + D  # test
+
+        # COPY AND PASTE FROM YOUR CODE ... I don't know how to end...
+        tree_price += min_node.price * mprime  # update the price of the tree
+        if min_node.type != 'server':
+            internal.append(min_node)  # add the min price node to the internal node
+
+    # find leaf nodes
+    leaves = []
+    for v in receivers:
+        if len(v.child) == 0:
+            leaves.append(v)
+    del A, B, R, sorted_receivers, min_receiver, D
+    return Tree(internal, leaves), tree_price
+
+
+def intersect(a, b):
+    return list(set(a) & set(b))
+
 
 #####################################
 ###  Algorithm for single session ###
