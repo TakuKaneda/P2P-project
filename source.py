@@ -286,6 +286,7 @@ def max_flow(nodes):
             a = node.flow / node.capacity
     return a
 
+
 def smallest_price_tree4(graph):
     """Compute the smallest price tree st:
     -Full Mesh Graph
