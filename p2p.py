@@ -4,7 +4,7 @@ import numpy as np
 from source import *
 
 # Set Parameters
-N = 100  # number of receivers
+N = 10  # number of receivers
 H = 5  # number of helpers
 M = 2  # Degree bound
 # M = N + 1  # NO Degree bound here
@@ -42,6 +42,9 @@ print('Average capacity  : {0}'.format((sum(C) + server.capacity) / N))
 ###  Algorithm  ###
 ###################
 
-# output_capacity, num_loop = primal_dual_single_session(graph_1, eps)
-# output_capacity, num_loop = primal_dual_single_session(graph_2, eps)
-output_capacity, num_loop = primal_dual_single_session(graph_3, eps)
+# output_capacity, num_loop, min_price_tree = primal_dual_single_session(graph_1, eps)
+# output_capacity, num_loop, min_price_tree = primal_dual_single_session(graph_2, eps)
+# output_capacity, num_loop, min_price_tree = primal_dual_single_session(graph_3, eps)
+output_capacity, num_loop, min_price_tree = primal_dual_single_session(graph_4, eps)
+
+plot_tree(min_price_tree)  # plot the min price tree
