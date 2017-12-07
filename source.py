@@ -567,6 +567,6 @@ def primal_dual_form_5(graph, eps):
     min_price_tree = t
     edge_labels = {}
     for e in min_price_tree.edges(data=True):
-        print(e)
+        # print(e)
         edge_labels.update({(e[0], e[1]): '$' + str.format('{0:.3f}', e[2]['weight'])})
     return output_capacity, j, min_price_tree, edge_labels
