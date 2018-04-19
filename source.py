@@ -1,7 +1,6 @@
 import networkx as nx
 import numpy as np
 import matplotlib.pyplot as plt
-# import sys
 import time
 
 
@@ -66,6 +65,7 @@ class Graph:
             return [self.server] + self.receivers + self.helpers
         else:
             return [self.server] + self.receivers
+
     def number_nodes(self):
         """return number of nodes"""
         if self.helpers:
@@ -94,7 +94,7 @@ class Graph:
             v.price = delta / v.capacity
 
 
-def plot_graph(graph):
+def plot_graph(graph, non_capacity=False):
     """visualize the graph for full mesh topology"""
     G = nx.Graph()
     color_map = []
@@ -102,7 +102,10 @@ def plot_graph(graph):
     to_nodes = graph.all_nodes()
     for v in graph.all_nodes():
         to_nodes.remove(v)
-        node_labels[v] = v.id + "-" + str.format('{0}Kbps', v.capacity) + ": $" + str.format('{0:.3f}', v.price)
+        if non_capacity:  # visualize without capacity tag
+            node_labels[v] = v.id + "-$" + str.format('{0:.3f}', v.price)
+        else:
+            node_labels[v] = v.id + "-" + str.format('{0}Kbps', v.capacity) + ": $" + str.format('{0:.3f}', v.price)
         if v.type == 'server':
             color_map.append('red')
         if v.type == 'receiver':
@@ -117,7 +120,7 @@ def plot_graph(graph):
     return
 
 
-def plot_tree(tree):
+def plot_tree(tree, non_capacity=False):
     """visualize the tree with the value of the flow
     assume the underlay graph is Full Mesh"""
     T = nx.DiGraph()
@@ -125,7 +128,10 @@ def plot_tree(tree):
     node_labels = {}
     for v in tree.all_nodes():
         T.add_node(v.id)  # add all node
-        node_labels[v.id] = v.id + "-" + str.format('{0}Kbps', v.capacity) + ": $" + str.format('{0:.3f}', v.price)
+        if non_capacity:  # visualize without capacity tag
+            node_labels[v.id] = v.id + "-$" + str.format('{0:.3f}', v.price)
+        else:
+            node_labels[v.id] = v.id + "-" + str.format('{0}Kbps', v.capacity) + ": $" + str.format('{0:.3f}', v.price)
         # ": $" + str.format('{0:.2f}', v.price)
         if v.type == 'server':
             color_map.append('red')
@@ -206,8 +212,6 @@ def smallest_price_tree2(graph):
     sorted_receivers = sorted(receivers)  # sort in price
     sorted_helpers = sorted(helpers)  # sort in price
     min_helper = sorted_helpers[0]  # find min price helper
-    # for helper in sorted_helpers:
-    #     helper.price = helper.price * R / (R - 1)
 
     # compute the total price
     total_price = server.price + min((R - 1) * server.price, (R - 1) * sorted_receivers[0].price,
@@ -251,10 +255,6 @@ def smallest_price_tree3(graph):
     B = sorted_receivers[1:]  # the rest of receivers
     server.child.append(min_receiver)  # server -> min price receiver
     server.degree = 1  # degree of server is 1
-    # # set the degree of all receivers to zero
-    # for r in receivers:
-    #     r.degree = 0
-
     tree_price = server.price  # total price of the tree
     internal = [server]  # set of internal nodes
     while len(A) != R + 1:  # while size of A is not equal to the number of nodes
@@ -267,8 +267,6 @@ def smallest_price_tree3(graph):
         D = B[:degree_temp]  # take m_temp smallest price nodes form B
         del B[:degree_temp]  # remove the nodes from B
         A = A + D  # add D to set A
-        # for v in D:
-        #     min_node.child.append(v)
         min_node.degree = min_node.degree + degree_temp  # update the degree of the min price node
         min_node.child = min_node.child + D  # test
 
@@ -317,10 +315,9 @@ def smallest_price_tree4(graph, Mp):
     receivers = graph.receivers
     helpers = graph.helpers
 
-    #### special settings ####
+    # special settings
     graph.set_degree_bound(Mp)  # receivers and helpers have same degree bound Mp
     server.degree_bound = float('inf')  # servers degree bound is infinity
-    ##########################
 
     R = len(receivers)  # number of receivers
     m = min(Mp, R)
@@ -336,7 +333,7 @@ def smallest_price_tree4(graph, Mp):
 
     server.child.append(v)  # server -> min effective price node v
     server.degree = 1  # degree of server is 1
-    while intersect(B, receivers) != []:
+    while intersect(B, receivers):
         n = 0
         for v in A:
             diff = v.degree_bound - v.degree
@@ -421,24 +418,24 @@ def primal_dual_single_session(graph, eps):
         y, min_node = min_cap_per_degree(t.internal)  # y is the flow sent on the tree
         for node in t.internal:
             node.flow = node.flow + y * node.degree  # update the flow for internal nodes
+            node.price = node.price * (1 + eps * node.degree * y / node.capacity) # update the price of nodes
         Y = Y + y  # update the whole flow
 
         # update of the price
         min_tree_price = 0  # total price of the minimum tree
         dual_obj = 0  # dual objective = total price of the minimum price
         for node in graph.all_nodes():
-            node.price = node.price * (1 + eps * node.degree * y / node.capacity)
             min_tree_price += node.price * node.degree
             dual_obj += node.price * node.capacity
         D = min_tree_price
         j += 1
         if j % 1000 == 0:
             toc = time.time()
-            print('Loop: {0}, Time: {1:.3f}, Min Tree Price: {2:.6f}'.format(j, toc - tic, D))
+            print('Loop: {0}, Time: {1:.3f}, SPT Price: ${2:.6f}'.format(j, toc - tic, D))
     alpha = max_flow(graph.all_nodes())
     output_capacity = Y / alpha
     print('Algorithm Finished\nNumber of loop: {0}, Total time: {1:.3f}\n'.format(j, time.time() - tic))
-    print('Price of the min tree   : ${0:.3f}'.format(D))
+    print('Price of the final SPT  : ${0:.3f}'.format(D))
     print('Value of dual objective : ${0:.3f}'.format(dual_obj))
     print('Approx capacity rate    : ${0:.3f}'.format(output_capacity))
     # plot_tree(t)  # plot the final tree (min price tree)
@@ -450,7 +447,7 @@ def primal_dual_single_session(graph, eps):
 ### Form 5: A General Graph  ####
 #################################
 
-def build_general_graph(N, p, delta, check):
+def build_general_graph(N, p, delta, check=0, non_capacity=False):
     """build a general graph with
     -No helper
     -No degree bound
@@ -460,6 +457,10 @@ def build_general_graph(N, p, delta, check):
               - delta: real delta or list of price
               - check: 0 - for P-D algorithm, initialization wrt delta
                      : 1 - you can set your own price: delta should be the list of price |R| + 1 length
+              - non_capacity: whether capacity is displayed or not
+    Output    - underlay_graph: general graph structure in NetworkX form
+              - color_map: color map for visualization of the graph
+              - node_labels: node labels for visualization of the graph
 
     """
     server = Node('s', 768, N + 1)  # fix the capacity to 768Kbps
@@ -476,27 +477,30 @@ def build_general_graph(N, p, delta, check):
     elif check == 1:  # your choice
         server.price = delta[0]
         for i in range(len(receivers)):
-            receivers[i].price= delta[i+1]
+            receivers[i].price = delta[i + 1]
     else:
         return None
-
     # build a connected random graph
     random_graph = nx.erdos_renyi_graph(N + 1, p)  # create random graph -> create the graph from this
     while not nx.is_connected(random_graph):  # until find one with all nodes are connected
         random_graph = nx.erdos_renyi_graph(N + 1, p)
 
+    underlay_graph = nx.DiGraph()  # directed graph
+    # underlay_graph = nx.Graph()  # if you want non directed graph
+
     color_map = []  # color map for visualization
     node_labels = {}  # label for visualization
-    underlay_graph = nx.DiGraph()  # directed graph
-    # graph = nx.Graph()  # if you want non directed graph
     for n in random_graph.nodes:
         if n == 0:  # let it be the server, we ignore edges from receives to server (meaning less)
             for l in random_graph.edges(0):
                 ind = l[1]  # destination node form n
                 underlay_graph.add_edge(server, receivers[ind - 1], weight=server.price)  # give an initial price
             color_map.append('red')
-            node_labels[server] = server.id + "-" + str.format('{0}Kbps', server.capacity) + ": $" + str.format(
-                '{0:.3f}', server.price)
+            if non_capacity:
+                node_labels[server] = server.id + "-$" + str.format('{0:.3f}', server.price)
+            else:
+                node_labels[server] = server.id + "-" + str.format('{0}Kbps', server.capacity) + ": $" + str.format(
+                    '{0:.3f}', server.price)
         else:  # receivers
             for l in random_graph.edges(n):
                 ind = l[1]  # destination node from n
@@ -505,8 +509,11 @@ def build_general_graph(N, p, delta, check):
                 underlay_graph.add_edge(receivers[ind - 1], receivers[n - 1], weight=receivers[ind - 1].price)
             color_map.append('blue')
             rec = receivers[n - 1]
-            node_labels[rec] = rec.id + "-" + str.format('{0}Kbps', rec.capacity) + ": $" + str.format('{0:.3f}',
-                                                                                                       rec.price)
+            if non_capacity:
+                node_labels[rec] = rec.id + "-$" + str.format('{0:.3f}', rec.price)
+            else:
+                node_labels[rec] = rec.id + "-" + str.format('{0}Kbps', rec.capacity) + ": $" + str.format('{0:.3f}',
+                                                                                                           rec.price)
     return underlay_graph, color_map, node_labels
 
 
@@ -538,35 +545,34 @@ def primal_dual_form_5(graph, eps):
         y, min_node, inner = min_cap_per_degree_form5(t)  # y is the flow sent on the tree
         for node in inner:
             node.flow = node.flow + y * node.degree  # update the flow for internal nodes
-        Y = Y + y  # update the whole flow
+            node.price = node.price * (1 + eps * node.degree * y / node.capacity)  # update of the price on node
+            for e in graph.edges(node):
+                graph.edges[e]['weight'] = node.price  # update of the price on edge
 
-        # update of the price
+        Y = Y + y  # update the whole flow
         tree_price = 0  # total price of the minimum tree
         dual_obj = 0  # dual objective = total price of the minimum price
-        for node in graph.nodes:
-            node.price = node.price * (1 + eps * node.degree * y / node.capacity)
+        for node in graph.nodes:  # compute the price of SPT
             tree_price += node.price * node.degree
             dual_obj += node.price * node.capacity
-
-        for n in graph.nodes:
-            for e in graph.edges(n):
-                graph.edges[e]['weight'] = graph.edges[e]['weight'] * (1 + eps * n.degree * y / n.capacity)
 
         D = tree_price
         j += 1
         if j % 1000 == 0:
             toc = time.time()
-            print('Loop: {0}, Time: {1:.3f}, Min Tree Price: {2:.6f}'.format(j, toc - tic, D))
+            print('Loop: {0}, Time: {1:.3f}, SPT Price: ${2:.6f}'.format(j, toc - tic, D))
     alpha = max_flow(graph.nodes)
     output_capacity = Y / alpha
     print('Algorithm Finished\nNumber of loop: {0}, Total time: {1:.3f}\n'.format(j, time.time() - tic))
-    print('Price of the min tree   : ${0:.3f}'.format(D))
+    print('Price of the final SPT  : ${0:.3f}'.format(D))
     print('Value of dual objective : ${0:.3f}'.format(dual_obj))
     print('Approx capacity rate    : ${0:.3f}'.format(output_capacity))
     # plot_tree(t)  # plot the final tree (min price tree)
     min_price_tree = t
     edge_labels = {}
+    node_labels = {}
+    for n in min_price_tree.nodes:
+        node_labels[n] = n.id + "-" + str.format('{0}Kbps', n.capacity) + ": $" + str.format('{0:.3f}', n.price)
     for e in min_price_tree.edges(data=True):
-        # print(e)
-        edge_labels.update({(e[0], e[1]): '$' + str.format('{0:.3f}', e[2]['weight'])})
-    return output_capacity, j, min_price_tree, edge_labels
+        edge_labels.update({(e[0], e[1]): '$' + str.format('{0:.3f}', e[0].price)})
+    return output_capacity, j, min_price_tree, edge_labels, node_labels
